@@ -1,0 +1,3 @@
+{"Instance": "toy_infeasible.cnf", "Time": 8e-08, "Result": "--"}
+{"Instance": "toy_simple.cnf", "Time": 9e-08, "Result": "--"}
+{"Instance": "toy_solveable.cnf", "Time": 7e-08, "Result": "--"}
