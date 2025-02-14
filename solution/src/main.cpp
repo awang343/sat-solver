@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
   SATInstance instance = parseCNFFile(input);
   Solver solver = Solver();
   solver.loadInstance(instance);
-  solver.unitProp();
+  solver.solver();
 
   string result = "SAT";
 
