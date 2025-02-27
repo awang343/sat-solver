@@ -7,16 +7,22 @@
 class Solver {
   private:
     SATInstance* instance;
-    bool solve(CNFFormula formula, Assignment &assignment);
-    void unitPropagation(CNFFormula &formula, Assignment &assignment);
-    void pureLiteralElimination(CNFFormula &formula, Assignment &assignment);
+    Assignment assignment;
+    bool result;
+
+    bool solve(const CNFFormula &formula, Assignment &assignment);
+    bool unitPropagation(CNFFormula &formula, Assignment &assignment);
+    bool pureLiteralElimination(CNFFormula &formula, Assignment &assignment);
+
     int chooseLiteral(const CNFFormula &formula);
 
   public:
     Solver();
-    void loadInstance(SATInstance &instance);
+    void setInstance(SATInstance &instance);
     void solver();
-    void unitProp();
+
+    bool getResult();
+    Assignment getAssignment();
 };
 
 #endif

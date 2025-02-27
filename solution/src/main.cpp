@@ -11,28 +11,49 @@ using namespace std;
 namespace fs = filesystem;
 
 int main(int argc, char *argv[]) {
-  if (argc < 2) {
-    cout << "Usage: ./main <cnf file>" << endl;
-    return 1;
-  }
+    if (argc < 2) {
+        cout << "Usage: ./main <cnf file>" << endl;
+        return 1;
+    }
 
-  string input = argv[1];
-  fs::path path(input);
-  string filename = path.filename().string();
+    string input = argv[1];
+    fs::path path(input);
+    string filename = path.filename().string();
 
-  Timer watch;
-  watch.start();
+    Timer watch;
+    watch.start();
 
-  SATInstance instance = parseCNFFile(input);
-  Solver solver = Solver();
-  solver.loadInstance(instance);
-  solver.solver();
+    SATInstance instance = parseCNFFile(input);
+    Solver solver = Solver();
+    solver.setInstance(instance);
+    solver.solver();
+    watch.stop();
 
-  string result = "SAT";
+    bool sat = solver.getResult();
+    Assignment assignment = solver.getAssignment();
 
-  watch.stop();
-  cout << "{\"Instance\": \"" << filename << "\", \"Time\": " << watch.getTime()
-       << ", \"Result\": \"" << result << "\"}" << endl;
+    if (sat) {
+        for (const auto &var : instance.getVars()) {
+            if (assignment.find(var) == assignment.end()) {
+                assignment[var] = true;
+            }
+        }
 
-  return 0;
+        string solution;
+        for (const auto &[key, value] : assignment) {
+            solution += to_string(key) + " " + (value ? "true" : "false") + " ";
+        }
+        if (!solution.empty()) {
+            solution.pop_back(); // Remove the trailing space
+        }
+
+        cout << "{\"Instance\": \"" << filename << "\", \"Time\": " << fixed << setprecision(2)
+             << watch.getTime() << ", \"Result\": \"SAT\", \"Solution\": \"" << solution << "\"}"
+             << endl;
+    } else {
+        cout << "{\"Instance\": \"" << filename << "\", \"Time\": " << fixed << setprecision(2)
+             << watch.getTime() << ", \"Result\": \"UNSAT\"}" << endl;
+    }
+
+    return 0;
 }

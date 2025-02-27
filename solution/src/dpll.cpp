@@ -8,73 +8,97 @@ using namespace std;
 
 Solver::Solver() : instance() {}
 
-void Solver::loadInstance(SATInstance &instance) { this->instance = &instance; }
+void Solver::setInstance(SATInstance &instance) { this->instance = &instance; }
+Assignment Solver::getAssignment() { return this->assignment; }
+bool Solver::getResult() { return this->result; }
 
 void Solver::solver() {
     // Convert instance to CNFFormula
     CNFFormula formula = this->instance->getFormula();
-    this->solve(formula)
+    this->result = this->solve(formula, this->assignment);
+}
 
-    for (int literal : formula[0]) {
-        cout << literal << endl;
+void assignLiteral(int literal, bool value, Assignment &assignment) {
+    if (literal > 0) {
+        assignment[literal] = value;
+
+    } else {
+        assignment[-literal] = !value;
     }
 }
 
-bool Solver::solve(CNFFormula formula, Assignment &assignment) {
-    this->unitPropagation(formula, assignment);
-    this->pureLiteralElimination(formula, assignment);
+bool Solver::solve(const CNFFormula &formula, Assignment &assignment) {
+    CNFFormula reducedFormula = formula;
+
+    bool updated = true;
+    while (updated) {
+        updated = false;
+        updated = updated || this->unitPropagation(reducedFormula, assignment);
+        updated = updated || this->pureLiteralElimination(reducedFormula, assignment);
+    }
 
     // If formula is empty, it's satisfiable
-    if (formula.empty())
+    if (reducedFormula.empty()) {
+        this->assignment = assignment;
         return true;
+    }
 
     // If any empty clause exists, return false (conflict)
-    for (const auto &clause : formula) {
+    for (const Clause &clause : reducedFormula) {
         if (clause.empty())
             return false;
     }
 
     // Choose a literal heuristically (first unassigned variable)
-    int literal = chooseLiteral(formula);
+    int literal = chooseLiteral(reducedFormula);
+
+    // Save original assignment state in case of backtracking
+    Assignment originalAssignment = assignment;
 
     // Try setting it to true
-    assignment[literal] = true;
-    CNFFormula reducedFormula = formula;
-    reducedFormula.erase(remove_if(reducedFormula.begin(), reducedFormula.end(),
-                                   [literal](const Clause &c) { return c.count(literal) > 0; }),
-                         reducedFormula.end());
+    assignLiteral(literal, true, assignment);
+    CNFFormula newFormula = reducedFormula;
 
-    for (auto &clause : reducedFormula) {
+    // Remove satisfied clauses and unsatisfied literals and simplify
+    newFormula.erase(remove_if(newFormula.begin(), newFormula.end(),
+                               [literal](const Clause &c) { return c.count(literal) > 0; }),
+                     newFormula.end());
+    for (Clause &clause : newFormula) {
         clause.erase(-literal);
     }
 
-    if (solve(reducedFormula, assignment))
+    // Recur with updated formula
+    if (solve(newFormula, assignment))
         return true;
 
-    // If setting it to true fails, try false
-    assignment[literal] = false;
-    reducedFormula = formula;
-    reducedFormula.erase(remove_if(reducedFormula.begin(), reducedFormula.end(),
-                                   [literal](const Clause &c) { return c.count(-literal) > 0; }),
-                         reducedFormula.end());
+    // Restore assignment before trying the other branch
+    assignment = originalAssignment;
+    assignLiteral(literal, false, assignment);
+    newFormula = reducedFormula;
 
-    for (auto &clause : reducedFormula) {
+    newFormula.erase(remove_if(newFormula.begin(), newFormula.end(),
+                               [literal](const Clause &c) { return c.count(-literal) > 0; }),
+                     newFormula.end());
+    for (Clause &clause : newFormula) {
         clause.erase(literal);
     }
 
-    return solve(reducedFormula, assignment);
+    return solve(newFormula, assignment);
 }
 
-void Solver::unitPropagation(CNFFormula &formula, Assignment &assignment) {
+bool Solver::unitPropagation(CNFFormula &formula, Assignment &assignment) {
     bool changed = true;
+    bool updated = false;
     while (changed) {
         changed = false;
         for (auto it = formula.begin(); it != formula.end();) {
             if (it->size() == 1) { // Found a unit clause
                 int unit = *it->begin();
-                assignment[unit] = (unit > 0);
+                assignLiteral(unit, (unit > 0), assignment);
+
                 formula.erase(it);
                 changed = true;
+                updated = true;
 
                 // Remove clauses containing unit
                 formula.erase(remove_if(formula.begin(), formula.end(),
@@ -82,7 +106,7 @@ void Solver::unitPropagation(CNFFormula &formula, Assignment &assignment) {
                               formula.end());
 
                 // Remove negations of unit
-                for (auto &clause : formula) {
+                for (Clause &clause : formula) {
                     clause.erase(-unit);
                 }
                 break;
@@ -91,12 +115,14 @@ void Solver::unitPropagation(CNFFormula &formula, Assignment &assignment) {
             }
         }
     }
+    return updated;
 }
 
-void Solver::pureLiteralElimination(CNFFormula &formula, Assignment &assignment) {
+bool Solver::pureLiteralElimination(CNFFormula &formula, Assignment &assignment) {
     unordered_map<int, int> literalCounts;
+    bool updated = false;
 
-    for (const auto &clause : formula) {
+    for (const Clause &clause : formula) {
         for (int lit : clause) {
             literalCounts[lit]++;
         }
@@ -104,16 +130,18 @@ void Solver::pureLiteralElimination(CNFFormula &formula, Assignment &assignment)
 
     for (const auto &[lit, count] : literalCounts) {
         if (literalCounts.count(-lit) == 0) { // It's a pure literal
-            assignment[lit] = (lit > 0);
+            updated = true;
+            assignLiteral(lit, (lit > 0), assignment);
             formula.erase(remove_if(formula.begin(), formula.end(),
                                     [lit](const Clause &c) { return c.count(lit) > 0; }),
                           formula.end());
         }
     }
+    return updated;
 }
 
 int Solver::chooseLiteral(const CNFFormula &formula) {
-    for (const auto &clause : formula) {
+    for (const Clause &clause : formula) {
         if (!clause.empty()) {
             return *clause.begin(); // Select first available literal
         }
