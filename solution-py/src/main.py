@@ -24,7 +24,7 @@ def pure_literal_elimination(clauses, assignment):
                 assignment[abs(lit)] = val
                 # remove clauses containing lit
                 clauses = [c for c in clauses if lit not in c]
-		del counts[lit]
+                del counts[lit]
                 changed = True
                 break
     return clauses, assignment
@@ -56,8 +56,7 @@ def unit_clause_elimination(clauses, assignment):
 
 def dpll(clauses, assignment):
     clauses, assignment = pure_literal_elimination(clauses, assignment)
-    clauset
-    1, assignment = unit_clause_elimination(clauses, assignment)
+    clauses, assignment = unit_clause_elimination(clauses, assignment)
     # check for empty clauses or success
     if any(len(c) == 0 for c in clauses):
         return False, assignment  # unsatisfiable
@@ -112,12 +111,16 @@ if __name__ == "__main__":
     watch.start()
 
     inst = parse_cnf_file(input_file)
-    print(inst)
 
     # Solve with DPLL
     sat, assignment = dpll(inst.clauses, {})
     watch.stop()
     t = watch.get_time()
-    res = "SAT" if sat else "UNSAT"
 
-    print(f'{{"Instance": "{filename}", "Time": {t:.2f}, "Result": "{res}"}}')
+    if sat:
+        for var in inst.vars:
+            assignment.setdefault(var, True)
+        l = "".join([f"{x} {str(assignment[x]).lower()} " for x in assignment])[:-1]
+        print(f'{{"Instance": "{filename}", "Time": {t:.2f}, "Result": "SAT", "Solution": "{l}"}}')
+    else:
+        print(f'{{"Instance": "{filename}", "Time": {t:.2f}, "Result": "UNSAT"}}')

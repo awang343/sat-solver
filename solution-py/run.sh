@@ -14,4 +14,4 @@ input=$1
 
 # Update this file with instructions on how to run your code given an input
 source .env/bin/activate
-python3 src/solver/sat/main.py "$input"
+python3 src/main.py "$input"
