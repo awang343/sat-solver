@@ -45,7 +45,7 @@ SATInstance parseCNFFile(const string &fileName) {
     SATInstance satInstance(numVars, numClauses);
 
     // Parse clauses
-    unordered_set<int> clause;
+    vector<int> clause;
     while (getline(file, line)) {
         istringstream iss(line);
         tokens.clear();
@@ -67,8 +67,7 @@ SATInstance parseCNFFile(const string &fileName) {
                 continue;
 
             int literal = stoi(tokens[i]);
-            clause.insert(literal);
-            satInstance.addVariable(literal);
+            clause.push_back(literal);
         }
 
         // Add clause to SATInstance

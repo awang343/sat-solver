@@ -3,6 +3,7 @@
 
 #include "types.h"
 #include <iostream>
+#include <queue>
 #include <set>
 #include <sstream>
 #include <string>
@@ -12,23 +13,24 @@
 class SATInstance {
   public:
     SATInstance(int numVars, int numClauses);
+    void addClause(const std::vector<int> &lits);
+    void initWatchers();
 
-    void addVariable(int literal);
-    void addClause(const Clause &clause);
-
+    bool isTrue(int lit);
+    bool isFalse(int lit);
     int getNumVars();
     int getNumClauses();
 
-    std::unordered_set<int> getVars();
-    CNFFormula getFormula();
-
     std::string toString() const;
+
+    std::vector<Clause> clauses;
+    std::vector<int> assignment;
+    std::queue<int> propQueue;
+    WatchedLiterals watchers;
 
   private:
     int numVars;
     int numClauses;
-    std::unordered_set<int> vars;
-    CNFFormula formula;
 };
 
 #endif

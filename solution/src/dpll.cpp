@@ -8,223 +8,219 @@
 using namespace std;
 
 Solver::Solver() : instance() {}
-WatchedLiterals watchedLiterals;
-
 void Solver::setInstance(SATInstance &instance) { this->instance = &instance; }
-Assignment Solver::getAssignment() { return this->assignment; }
-bool Solver::getResult() { return this->result; }
+vector<int> Solver::getAssignment() { return instance->assignment; }
 
-void Solver::solver() {
-    // Convert instance to CNFFormula
-    CNFFormula formula = this->instance->getFormula();
-    this->result = this->solve(formula, this->assignment);
-}
+/*{{{ Propagate*/
+bool Solver::propagate() {
+    while (!instance->propQueue.empty()) {
+        int p = instance->propQueue.front();
+        instance->propQueue.pop();
+        int negP = -p;
+        // We process all clauses that are watching -p.
+        // (Copy the current watcher list because it may be modified during iteration.)
+        vector<pair<int, int>> currentWatchers = instance->watchers[negP];
+        instance->watchers[negP].clear(); // They will be re-added as needed.
+        for (auto &entry : currentWatchers) {
+            int ci = entry.first;
+	    size_t ci_idx = static_cast<size_t>(ci);
 
-void assignLiteral(int literal, bool value, Assignment &assignment) {
-    if (literal > 0) {
-        assignment[literal] = value;
+            int watchIdx = entry.second;
+            Clause &clause = instance->clauses[ci_idx];
 
-    } else {
-        assignment[-literal] = !value;
+            // Determine the other watched literal in the clause.
+            int otherWatchInt = (watchIdx == 0 ? clause.watch2 : clause.watch1);
+	    size_t otherWatchIdx = static_cast<size_t>(otherWatchInt);
+            // If the clause is unit (only one watched literal exists), then otherWatchIdx might be
+            // -1.
+            if (otherWatchInt == -1) {
+                // Unit clause: if the only literal is false, conflict.
+		size_t watch_idx = static_cast<size_t>(clause.watch1);
+                int sole = clause.literals[watch_idx];
+                if (instance->isFalse(sole))
+                    return false;
+                // Otherwise, nothing to do.
+                instance->watchers[negP].push_back(entry);
+                continue;
+            }
+            int otherLit = clause.literals[otherWatchIdx];
+            // If the other watched literal is already true, then the clause is satisfied.
+            if (instance->isTrue(otherLit)) {
+                instance->watchers[negP].push_back(entry);
+                continue;
+            }
+            // Try to find a new literal in the clause to watch (other than the two already
+            // watched).
+            bool foundNewWatch = false;
+            for (size_t k = 0; k < clause.literals.size(); k++) {
+		int k_int = static_cast<int>(k);
+                if (k_int == clause.watch1 || k_int == clause.watch2)
+                    continue;
+                int candidate = clause.literals[k];
+                if (!instance->isFalse(candidate)) { // candidate is unassigned or true
+                    // Update the watched literal.
+                    if (watchIdx == 0)
+                        clause.watch1 = k_int;
+                    else
+                        clause.watch2 = k_int;
+                    instance->watchers[candidate].push_back({ci, watchIdx});
+                    foundNewWatch = true;
+                    break;
+                }
+            }
+            if (!foundNewWatch) {
+                // No replacement was found.
+                // Then the clause is either unit (if otherLit is unassigned) or a conflict.
+                if (instance->isFalse(otherLit))
+                    return false; // conflict detected
+                // Unit clause: assign otherLit.
+                size_t var = static_cast<size_t>(abs(otherLit));
+                int val = (otherLit > 0) ? 1 : -1;
+                if (instance->assignment[var] == 0) {
+                    instance->assignment[var] = val;
+                    instance->propQueue.push(otherLit);
+                }
+                // Re-add this watcher (still watching -p).
+                instance->watchers[negP].push_back(entry);
+            }
+        }
     }
-}
+    return true;
+} /*}}}*/
 
-bool Solver::solve(const CNFFormula &formula, Assignment &assignment) {
-    CNFFormula reducedFormula = formula;
-
-    bool updated = true;
-    while (updated) {
-        updated = false;
-        updated = updated || this->unitPropagation(reducedFormula, assignment);
-        updated = updated || this->pureLiteralElimination(reducedFormula, assignment);
-    }
-
-    // If formula is empty, it's satisfiable
-    if (reducedFormula.empty()) {
-        this->assignment = assignment;
-        return true;
-    }
-
-    // If any empty clause exists, return false (conflict)
-    for (const Clause &clause : reducedFormula) {
-        if (clause.empty())
-            return false;
-    }
-
-    // Choose a literal heuristically (first unassigned variable)
-    int literal = chooseLiteral(reducedFormula);
-
-    // Save original assignment state in case of backtracking
-    Assignment originalAssignment = assignment;
-
-    // Try setting it to true
-    assignLiteral(literal, true, assignment);
-    CNFFormula newFormula = reducedFormula;
-
-    // Remove satisfied clauses and unsatisfied literals and simplify
-    newFormula.erase(remove_if(newFormula.begin(), newFormula.end(),
-                               [literal](const Clause &c) { return c.count(literal) > 0; }),
-                     newFormula.end());
-    for (Clause &clause : newFormula) {
-        clause.erase(-literal);
-    }
-
-    // Recur with updated formula
-    if (solve(newFormula, assignment))
-        return true;
-
-    // Restore assignment before trying the other branch
-    assignment = originalAssignment;
-    assignLiteral(literal, false, assignment);
-    newFormula = reducedFormula;
-
-    newFormula.erase(remove_if(newFormula.begin(), newFormula.end(),
-                               [literal](const Clause &c) { return c.count(-literal) > 0; }),
-                     newFormula.end());
-    for (Clause &clause : newFormula) {
-        clause.erase(literal);
-    }
-
-    return solve(newFormula, assignment);
-}
-
-bool Solver::unitPropagation(CNFFormula &formula, Assignment &assignment) {
+/*{{{ Pure Literal Elimination*/
+bool Solver::pureLiteralElimination() {
     bool changed = true;
-    bool updated = false;
     while (changed) {
         changed = false;
-        for (auto it = formula.begin(); it != formula.end();) {
-            if (it->size() == 1) { // Found a unit clause
-                int unit = *it->begin();
-                assignLiteral(unit, (unit > 0), assignment);
-
-                formula.erase(it);
+	size_t size = static_cast<size_t>(instance->getNumVars());
+        vector<int> posCount(size + 1, 0);
+        vector<int> negCount(size + 1, 0);
+        // Count appearances of each literal (only if the variable is unassigned).
+        for (const auto &clause : instance->clauses) {
+            for (int lit : clause.literals) {
+		size_t var = static_cast<size_t>(abs(lit));
+                if (instance->assignment[var] != 0)
+                    continue;
+                if (lit > 0)
+                    posCount[var]++;
+                else
+                    negCount[var]++;
+            }
+        }
+        // For each variable that is pure, assign it.
+        for (int v = 1; v <= instance->getNumVars(); v++) {
+	    size_t var = static_cast<size_t>(v);
+            if (instance->assignment[var] != 0)
+                continue;
+            if (posCount[var] > 0 && negCount[var] == 0) {
+                instance->assignment[var] = 1;
+                instance->propQueue.push(v);
                 changed = true;
-                updated = true;
+            } else if (negCount[var] > 0 && posCount[var] == 0) {
+                instance->assignment[var] = -1;
+                instance->propQueue.push(-v);
+                changed = true;
+            }
+        }
+        if (changed && !propagate())
+            return false;
+    }
+    return true;
+} /*}}}*/
 
-                // Remove clauses containing unit
-                formula.erase(remove_if(formula.begin(), formula.end(),
-                                        [unit](const Clause &c) { return c.count(unit) > 0; }),
-                              formula.end());
+/*{{{ Choose Literal */
+int Solver::chooseLiteral() {
+    int bestVar = 0;
+    int bestScore = -1;
+    int bestPolarity = 1;
+    vector<int> posCount(static_cast<size_t>(instance->getNumVars()) + 1, 0);
+    vector<int> negCount(static_cast<size_t>(instance->getNumVars()) + 1, 0);
 
-                // Remove negations of unit
-                for (Clause &clause : formula) {
-                    clause.erase(-unit);
-                }
-                break;
-            } else {
-                ++it;
+    for (const auto &clause : instance->clauses) {
+        for (int lit : clause.literals) {
+	    size_t idx = static_cast<size_t>(abs(lit));
+            if (instance->assignment[idx] != 0)
+                continue;
+            if (lit > 0)
+                posCount[idx]++;
+            else
+                negCount[idx]++;
+        }
+    }
+    for (int v = 1; v <= instance->getNumVars(); v++) {
+	size_t var = static_cast<size_t>(v);
+        if (instance->assignment[var] == 0) {
+            int score = posCount[var] + negCount[var];
+            if (score > bestScore) {
+                bestScore = score;
+                bestVar = v;
+                bestPolarity = (posCount[var] >= negCount[var]) ? 1 : -1;
             }
         }
     }
-    return updated;
-}
+    // If no unassigned variable is found, return 0 (should not happen)
+    return bestVar == 0 ? 0 : bestVar * bestPolarity;
+} /*}}}*/
 
-bool Solver::pureLiteralElimination(CNFFormula &formula, Assignment &assignment) {
-    unordered_map<int, int> literalCounts;
-    bool updated = false;
-
-    for (const Clause &clause : formula) {
-        for (int lit : clause) {
-            literalCounts[lit]++;
+/*{{{ DPLL Loop*/
+bool Solver::dpll() {
+    // First, perform pure literal elimination and propagate any unit clauses.
+    if (!pureLiteralElimination())
+        return false;
+    if (!propagate())
+        return false;
+    // Check if all variables are assigned.
+    bool complete = true;
+    for (size_t v = 1; v <= static_cast<size_t>(instance->getNumVars()); v++) {
+        if (instance->assignment[v] == 0) {
+            complete = false;
+            break;
         }
     }
+    if (complete)
+        return true;
 
-    for (const auto &[lit, count] : literalCounts) {
-        if (literalCounts.count(-lit) == 0) { // It's a pure literal
-            updated = true;
-            assignLiteral(lit, (lit > 0), assignment);
-            formula.erase(remove_if(formula.begin(), formula.end(),
-                                    [lit](const Clause &c) { return c.count(lit) > 0; }),
-                          formula.end());
-        }
-    }
-    return updated;
-}
+    // Choose a literal to branch on.
+    int lit = chooseLiteral();
+    if (lit == 0)
+        return false; // no literal found
+    size_t idx = static_cast<size_t>(abs(lit));
 
-int Solver::chooseLiteral(const CNFFormula &formula) {
-    // Give more weight to Jeroslow-Wang (alpha) based on observed performance
-    double alpha = 5.0;   // Heavier Jeroslow-Wang weight
-    double beta  = 0.8;   // Frequency weight
-    double gamma = 0.3;   // MOM weight
-    double dlisWeight = 0.5; // Additional DLIS-like factor
+    // Save state for backtracking.
+    vector<int> assignment_backup = instance->assignment;
+    auto watchers_backup = instance->watchers;
+    vector<Clause> clauses_backup = instance->clauses;
+    queue<int> propQueue_backup = instance->propQueue;
 
-    unordered_map<int, double> freq; // Count occurrences
-    unordered_map<int, double> jw;   // Jeroslow-Wang scores
-    unordered_map<int, double> mom;  // Weighted by smallest clauses
-    unordered_map<int, double> dlis; // Rough DLIS approach
+    // Branch with the chosen literal set to true.
+    instance->assignment[idx] = (lit > 0 ? 1 : -1);
+    instance->propQueue.push(lit);
+    if (propagate() && dpll())
+        return true;
 
-    // Find smallest clause size for MOM
-    size_t minClauseSize = numeric_limits<size_t>::max();
-    for (const Clause &c : formula) {
-        if (!c.empty() && c.size() < minClauseSize) {
-            minClauseSize = c.size();
-        }
-    }
+    // Restore state
+    instance->assignment = assignment_backup;
+    instance->watchers = watchers_backup;
+    instance->clauses = clauses_backup;
+    instance->propQueue = propQueue_backup;
 
-    // Build initial scores
-    for (const Clause &clause : formula) {
-        double weight = pow(2.0, -static_cast<double>(clause.size())); // Jeroslow-Wang
-        for (int lit : clause) {
-            freq[lit]++;
-            jw[lit] += weight;
-            if (clause.size() == minClauseSize) {
-                mom[lit] += 1.0; // Count occurrences in smallest clauses
-            }
-        }
-    }
+    // Try opposite assignment
+    instance->assignment[idx] = (lit > 0 ? -1 : 1);
+    instance->propQueue.push(-lit);
+    if (propagate() && dpll())
+        return true;
 
-    // Simple DLIS-like approach: number of clauses that lit alone can satisfy
-    for (int litCandidate = -static_cast<int>(instance->getNumVars());
-         litCandidate <= static_cast<int>(instance->getNumVars()); litCandidate++) {
+    // Restore state and return failure.
+    instance->assignment = assignment_backup;
+    instance->watchers = watchers_backup;
+    instance->clauses = clauses_backup;
+    instance->propQueue = propQueue_backup;
+    return false;
+} /*}}}*/
 
-        // Skip zero or invalid
-        if (litCandidate == 0) continue;
-        dlis[litCandidate] = 0.0;
-
-        // Count potential satisfaction if we choose litCandidate
-        for (const Clause &clause : formula) {
-            if (clause.count(litCandidate) > 0) {
-                dlis[litCandidate] += 1.0;
-            }
-        }
-    }
-
-    // Combine scores
-    int bestLiteral = 0;
-    double bestScore = -1.0;
-    for (auto &entry : freq) {
-        int lit = entry.first;
-        double combinedScore =
-            alpha * jw[lit] + 
-            beta  * freq[lit] +
-            gamma * mom[lit] +
-            dlisWeight * dlis[lit];
-        if (combinedScore > bestScore) {
-            bestScore = combinedScore;
-            bestLiteral = lit;
-        }
-    }
-    return bestLiteral;
-}
-
-/* int Solver::chooseLiteral(const CNFFormula &formula) { */
-/*     unordered_map<int, double> score; */
-/*     // Assign higher weight to literals in shorter clauses */
-/*     for (const auto &clause : formula) { */
-/*         double weight = pow(2.0, -static_cast<double>(clause.size())); */
-/*         for (int lit : clause) { */
-/*             score[lit] += weight; */
-/*         } */
-/*     } */
-/*     // Pick the literal with the best score */
-/*     int bestLiteral = 0; */
-/*     double bestScore = -1.0; */
-/*     for (const auto &[lit, s] : score) { */
-/*         if (s > bestScore) { */
-/*             bestScore = s; */
-/*             bestLiteral = lit; */
-/*         } */
-/*     } */
-/*     return bestLiteral; // 0 if all are empty or not found */
-/* } */
+/*{{{ Solve Main*/
+bool Solver::solve() {
+    instance->initWatchers();
+    return dpll();
+} /*}}}*/

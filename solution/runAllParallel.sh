@@ -5,12 +5,6 @@
 ########################################
 E_BADARGS=65
 
-if [[ "$(uname)" == "Darwin" ]]; then
-    TIMEOUT_CMD="gtimeout"
-else
-    TIMEOUT_CMD="timeout"
-fi
-
 if [ $# -ne 3 ] && [ $# -ne 2 ]; then
     echo "Usage: $(basename $0) <inputFolder/> <timeLimit> [<logFile>]"
     echo "Description:"
@@ -50,7 +44,7 @@ process_file() {
     local logFile="$3"
 
     echo "Running $fullFileName"
-    output=$($TIMEOUT_CMD "$timeLimit" ./run.sh "$fullFileName" 2>&1)
+    output=$(timeout "$timeLimit" ./run.sh "$fullFileName" 2>&1)
     returnValue="$?"
 
     if [[ "$returnValue" = 0 ]]; then
@@ -64,6 +58,6 @@ process_file() {
 export -f process_file
 
 # Run all files in parallel
-find "$inputFolder" -type f | parallel -j 4 process_file {} "$timeLimit" "$logFile"
+find "$inputFolder" -type f | parallel -j 2 process_file {} "$timeLimit" "$logFile"
 
 echo "Processing complete. Log saved to $logFile"

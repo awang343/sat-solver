@@ -6,23 +6,18 @@
 
 class Solver {
   private:
-    SATInstance* instance;
-    Assignment assignment;
-    bool result;
+    SATInstance *instance;
 
-    bool solve(const CNFFormula &formula, Assignment &assignment);
-    bool unitPropagation(CNFFormula &formula, Assignment &assignment);
-    bool pureLiteralElimination(CNFFormula &formula, Assignment &assignment);
-
-    int chooseLiteral(const CNFFormula &formula);
+    bool dpll();
+    bool propagate();
+    bool pureLiteralElimination();
+    int chooseLiteral();
 
   public:
     Solver();
     void setInstance(SATInstance &instance);
-    void solver();
-
-    bool getResult();
-    Assignment getAssignment();
+    std::vector<int> getAssignment();
+    bool solve();
 };
 
 #endif
