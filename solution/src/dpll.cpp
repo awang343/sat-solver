@@ -2,6 +2,7 @@
 #include "sat_instance.h"
 #include "types.h"
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 
 using namespace std;
@@ -139,12 +140,63 @@ bool Solver::pureLiteralElimination(CNFFormula &formula, Assignment &assignment)
     }
     return updated;
 }
-
 int Solver::chooseLiteral(const CNFFormula &formula) {
-    for (const Clause &clause : formula) {
-        if (!clause.empty()) {
-            return *clause.begin(); // Select first available literal
+    // Parameters for combining heuristics
+    double alpha = 2.0;              // Jeroslow-Wang weight
+    double beta = 1.0;               // Pure frequency weight
+    double gamma = 0.5;              // MOM-like weight
+    unordered_map<int, double> freq; // Count occurrences
+    unordered_map<int, double> jw;   // Jeroslow-Wang scores
+    unordered_map<int, double> mom;  // Weighted by smallest clauses
+    // Find smallest clause size for MOM
+    size_t minClauseSize = numeric_limits<size_t>::max();
+    for (const Clause &c : formula) {
+        if (!c.empty() && c.size() < minClauseSize) {
+            minClauseSize = c.size();
         }
     }
-    return 0; // Should not happen
+    // Build scores
+    for (const Clause &clause : formula) {
+        double weight = pow(2.0, -static_cast<double>(clause.size())); // Jeroslow-Wang
+        for (int lit : clause) {
+            freq[lit]++;
+            jw[lit] += weight;
+            if (clause.size() == minClauseSize) {
+                mom[lit] += 1.0; // Count occurrences in smallest clauses
+            }
+        }
+    }
+    // Combine scores
+    int bestLiteral = 0;
+    double bestScore = -1.0;
+    for (auto &entry : freq) {
+        int lit = entry.first;
+        double combinedScore = alpha * jw[lit] + beta * freq[lit] + gamma * mom[lit];
+        if (combinedScore > bestScore) {
+            bestScore = combinedScore;
+            bestLiteral = lit;
+        }
+    }
+    return bestLiteral;
 }
+
+/* int Solver::chooseLiteral(const CNFFormula &formula) { */
+/*     unordered_map<int, double> score; */
+/*     // Assign higher weight to literals in shorter clauses */
+/*     for (const auto &clause : formula) { */
+/*         double weight = pow(2.0, -static_cast<double>(clause.size())); */
+/*         for (int lit : clause) { */
+/*             score[lit] += weight; */
+/*         } */
+/*     } */
+/*     // Pick the literal with the best score */
+/*     int bestLiteral = 0; */
+/*     double bestScore = -1.0; */
+/*     for (const auto &[lit, s] : score) { */
+/*         if (s > bestScore) { */
+/*             bestScore = s; */
+/*             bestLiteral = lit; */
+/*         } */
+/*     } */
+/*     return bestLiteral; // 0 if all are empty or not found */
+/* } */
