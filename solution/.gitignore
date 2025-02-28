@@ -3,5 +3,3 @@ inputs/
 logs/
 build/
 bin/
-runAll.sh
-runAllParallel.sh
