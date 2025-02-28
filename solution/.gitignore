@@ -1,0 +1,5 @@
+tests/
+inputs/
+logs/
+build/
+bin/
