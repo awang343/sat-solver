@@ -5,6 +5,12 @@
 ########################################
 E_BADARGS=65
 
+if [[ "$(uname)" == "Darwin" ]]; then
+    TIMEOUT_CMD="gtimeout"
+else
+    TIMEOUT_CMD="timeout"
+fi
+
 if [ $# -ne 3 ] && [ $# -ne 2 ]
 then
     echo "Usage: `basename $0` <inputFolder/> <timeLimit> [<logFile>]"
@@ -48,7 +54,7 @@ for f in $inputFolder*.*
 do
 	fullFileName=$(realpath "$f")
 	echo "Running $fullFileName"
-	timeout $timeLimit ./run.sh $fullFileName > output.tmp
+	$TIMEOUT_CMD $timeLimit ./run.sh $fullFileName > output.tmp
 	returnValue="$?"
 	if [[ "$returnValue" = 0 ]]; then 					# Run is successful
 		cat output.tmp | tail -1 >> $logFile				# Record the last line as solution
