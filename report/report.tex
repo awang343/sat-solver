@@ -11,10 +11,10 @@
 \textheight=9.0in
 \headsep=0.25in
 
-\newcommand{\noteTitle}{Mass Customization Report}
+\newcommand{\noteTitle}{SAT Solver Implementation Report}
 \newcommand{\professor}{Serdar Kadioglu}
 \newcommand{\class}{CSCI 2951O Prescriptive Analytics}
-\newcommand{\notesAuthor}{Alan Wang}
+\newcommand{\notesAuthor}{[Your Name(s)]}
 
 \pagestyle{fancy}
 \lhead{\notesAuthor}
@@ -40,11 +40,58 @@
 \begin{document}
 \maketitle
 
-\section*{gnuplot}
-We can use gnuplot to generate nice plots for us!
+\section*{Team Information}
+\begin{itemize}
+    \item \textbf{Name(s)}: [Your Name(s)]
+    \item \textbf{CS Login(s)}: [Your CS Login(s)]
+    \item \textbf{Screen Name(s)}: [Your Screen Name(s)]
+    \item \textbf{Time Spent}: [Total Hours Spent]
+\end{itemize}
 
-\section*{Section 2}
+\section*{Introduction}
+Our SAT solver implementation is based on the DPLL (Davis-Putnam-Logemann-Loveland) algorithm. We chose C++ for its performance benefits, particularly the lack of overhead, which is crucial for solving large and complex SAT instances efficiently.
 
-\section*{Section 3}
+\section*{Solution Strategy}
+Our solver employs several heuristics to improve the efficiency of the DPLL algorithm:
+\begin{itemize}
+    \item \textbf{Jeroslow-Wang (JW) clause size Heuristic}: Assigns higher weights to literals in smaller clauses.
+    \item \textbf{Frequency Heuristic}: Counts the occurrences of each literal in the formula.
+    \item \textbf{Maximum Occurrences in clauses of Minimum Size (MOM) Heuristic}: Focuses on literals in the smallest clauses.
+    \item \textbf{Dynamic Largest Individual Sum (DLIS) Heuristic}: Counts the number of clauses that each literal alone can satisfy.
+\end{itemize}
+
+\section*{Implementation Techniques}
+\begin{itemize}
+    \item \textbf{Unit Propagation}: Simplifies the formula by assigning values to unit clauses.
+    \item \textbf{Pure Literal Elimination}: Removes clauses containing pure literals.
+    \item \textbf{Heuristic-Based Literal Selection}: Combines multiple heuristics to choose the best literal for branching.
+\end{itemize}
+
+\section*{Experimental Observations}
+\begin{itemize}
+    \item \textbf{Performance}: The combination of heuristics significantly improved the solver's performance on various benchmarks.
+    \item \textbf{Scalability}: The solver handled larger instances more efficiently due to the optimized literal selection process.
+    \item \textbf{Accuracy}: The solver consistently found correct solutions or identified unsatisfiable instances.
+\end{itemize}
+
+\section*{Comparison of Techniques}
+\begin{itemize}
+    \item \textbf{Jeroslow-Wang (counting the size of clauses) vs. Frequency}: JW provided better performance for smaller clauses, while frequency was more effective for larger formulas.
+    \item \textbf{MOM Heuristic}: Helped in quickly reducing the formula size by focusing on the smallest clauses.
+    \item \textbf{DLIS Heuristic}: Provided a good balance between simplification and branching decisions.
+\end{itemize}
+
+\section*{Challenges and Difficulties}
+\begin{itemize}
+    \item \textbf{Heuristic Tuning}: Finding the optimal weights for combining heuristics required extensive experimentation.
+    \item \textbf{Edge Cases}: Handling edge cases, such as formulas with many unit clauses or pure literals, was challenging.
+    \item \textbf{Performance Optimization}: Ensuring the solver remained efficient for both small and large instances required careful optimization of data structures and algorithms.
+\end{itemize}
+
+\section*{Conclusion}
+Our SAT solver implementation successfully leveraged multiple heuristics to enhance the DPLL algorithm's performance. While tuning the heuristics and handling edge cases were challenging, the final solver demonstrated significant improvements in efficiency and scalability.
+
+\section*{Additional Information}
+We chose C++ for its performance benefits, particularly the lack of overhead, which is crucial for solving large and complex SAT instances efficiently.
 
 \end{document}
