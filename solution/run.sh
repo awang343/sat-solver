@@ -13,4 +13,4 @@ fi
 input=$1
 
 # Update this file with instructions on how to run your code given an input
-./bin/main $input
+./bin/solution-a $input

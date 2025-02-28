@@ -24,7 +24,7 @@ class SATInstance {
     std::string toString() const;
 
     std::vector<Clause> clauses;
-    std::vector<int> assignment;
+    Assignment assignment;
     std::queue<int> propQueue;
     WatchedLiterals watchers;
 

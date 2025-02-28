@@ -6,4 +6,4 @@
 
 # Update this file with instructions on how to compile your code
 
-make -C src clean all
+make clean all

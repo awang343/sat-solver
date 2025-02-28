@@ -3,6 +3,10 @@
 
 #include "sat_instance.h"
 #include "types.h"
+#include <algorithm>
+#include <cmath>
+#include <iostream>
+#include <unistd.h>
 
 class Solver {
   private:
@@ -16,7 +20,7 @@ class Solver {
   public:
     Solver();
     void setInstance(SATInstance &instance);
-    std::vector<int> getAssignment();
+    Assignment getAssignment();
     bool solve();
 };
 

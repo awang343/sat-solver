@@ -3,9 +3,7 @@
 
 using namespace std;
 
-SATInstance::SATInstance(int numVars, int numClauses) : numVars(numVars), numClauses(numClauses) {
-    assignment.resize(static_cast<size_t>(numVars) + 1, 0);
-}
+SATInstance::SATInstance(int numVars, int numClauses) : numVars(numVars), numClauses(numClauses) {}
 
 // Add a clause (each clause is a vector of ints representing literals)
 void SATInstance::addClause(const vector<int> &lits) { clauses.emplace_back(lits); }
@@ -13,31 +11,30 @@ void SATInstance::addClause(const vector<int> &lits) { clauses.emplace_back(lits
 // Initialize the watchers for all clauses.
 void SATInstance::initWatchers() {
     watchers.clear();
-    for (size_t i = 0; i < clauses.size(); i++) {
+    for (size_t i = 0; i < clauses.size(); ++i) {
+        // If watch1/watch2 is defined, then link it up with watchers
         Clause &c = clauses[i];
-        if (c.watch1 != -1) {
-            int lit = c.literals[static_cast<size_t>(c.watch1)];
-            watchers[lit].push_back({i, 0});
+        if (c.watch1.has_value()) {
+            int lit = clauses[i].literals[*clauses[i].watch1];
+            watchers[lit].insert({i, 0});
         }
-        if (c.watch2 != -1) {
-            int lit = c.literals[static_cast<size_t>(c.watch2)];
-            watchers[lit].push_back({i, 1});
+        if (c.watch2.has_value()) {
+            int lit = clauses[i].literals[*clauses[i].watch2];
+            watchers[lit].insert({i, 1});
         }
     }
 }
 
 bool SATInstance::isTrue(int lit) {
-    size_t var = static_cast<size_t>(abs(lit));
-    if (assignment[var] == 0)
+    if (assignment[abs(lit)] == 0)
         return false;
-    return (lit > 0 && assignment[var] == 1) || (lit < 0 && assignment[var] == -1);
+    return (lit > 0 && assignment[abs(lit)] == 1) || (lit < 0 && assignment[abs(lit)] == -1);
 }
 
 bool SATInstance::isFalse(int lit) {
-    size_t var = static_cast<size_t>(abs(lit));
-    if (assignment[var] == 0)
+    if (assignment[abs(lit)] == 0)
         return false;
-    return (lit > 0 && assignment[var] == -1) || (lit < 0 && assignment[var] == 1);
+    return (lit > 0 && assignment[abs(lit)] == -1) || (lit < 0 && assignment[abs(lit)] == 1);
 }
 
 // Getters
@@ -50,9 +47,11 @@ string SATInstance::toString() const {
     buf << "Number of variables: " << numVars << "\n";
     buf << "Number of clauses: " << numClauses << "\n";
 
-    for (size_t c = 0; c < clauses.size(); ++c) {
-        buf << "Clause " << c << ": [ ";
-        for (int lit : clauses[c].literals) {
+    std::vector<int> nums = {10, 20, 30, 40};
+
+    for (size_t i = 0; i < clauses.size(); ++i) {
+        buf << "Clause " << i << ": [ ";
+        for (int lit : clauses[i].literals) {
             buf << lit << " ";
         }
         buf << "]\n";

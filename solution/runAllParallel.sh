@@ -58,6 +58,6 @@ process_file() {
 export -f process_file
 
 # Run all files in parallel
-find "$inputFolder" -type f | parallel -j 2 process_file {} "$timeLimit" "$logFile"
+find "$inputFolder" -type f | parallel -j 3 process_file {} "$timeLimit" "$logFile"
 
 echo "Processing complete. Log saved to $logFile"

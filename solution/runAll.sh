@@ -44,7 +44,7 @@ fi
 touch $logFile
 
 # Run on every file, get the last line, append to log file
-for f in $inputFolder*.*
+for f in $inputFolder*.cnf
 do
 	fullFileName=$(realpath "$f")
 	echo "Running $fullFileName"
