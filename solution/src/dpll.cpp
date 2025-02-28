@@ -8,6 +8,7 @@
 using namespace std;
 
 Solver::Solver() : instance() {}
+WatchedLiterals watchedLiterals;
 
 void Solver::setInstance(SATInstance &instance) { this->instance = &instance; }
 Assignment Solver::getAssignment() { return this->assignment; }
@@ -140,63 +141,90 @@ bool Solver::pureLiteralElimination(CNFFormula &formula, Assignment &assignment)
     }
     return updated;
 }
-/* int Solver::chooseLiteral(const CNFFormula &formula) { */
-/*     // Parameters for combining heuristics */
-/*     double alpha = 2.0;              // Jeroslow-Wang weight */
-/*     double beta = 1.0;               // Pure frequency weight */
-/*     double gamma = 0.5;              // MOM-like weight */
-/*     unordered_map<int, double> freq; // Count occurrences */
-/*     unordered_map<int, double> jw;   // Jeroslow-Wang scores */
-/*     unordered_map<int, double> mom;  // Weighted by smallest clauses */
-/*     // Find smallest clause size for MOM */
-/*     size_t minClauseSize = numeric_limits<size_t>::max(); */
-/*     for (const Clause &c : formula) { */
-/*         if (!c.empty() && c.size() < minClauseSize) { */
-/*             minClauseSize = c.size(); */
-/*         } */
-/*     } */
-/*     // Build scores */
-/*     for (const Clause &clause : formula) { */
-/*         double weight = pow(2.0, -static_cast<double>(clause.size())); // Jeroslow-Wang */
-/*         for (int lit : clause) { */
-/*             freq[lit]++; */
-/*             jw[lit] += weight; */
-/*             if (clause.size() == minClauseSize) { */
-/*                 mom[lit] += 1.0; // Count occurrences in smallest clauses */
-/*             } */
-/*         } */
-/*     } */
-/*     // Combine scores */
-/*     int bestLiteral = 0; */
-/*     double bestScore = -1.0; */
-/*     for (auto &entry : freq) { */
-/*         int lit = entry.first; */
-/*         double combinedScore = alpha * jw[lit] + beta * freq[lit] + gamma * mom[lit]; */
-/*         if (combinedScore > bestScore) { */
-/*             bestScore = combinedScore; */
-/*             bestLiteral = lit; */
-/*         } */
-/*     } */
-/*     return bestLiteral; */
-/* } */
 
 int Solver::chooseLiteral(const CNFFormula &formula) {
-    unordered_map<int, double> score;
-    // Assign higher weight to literals in shorter clauses
-    for (const auto &clause : formula) {
-        double weight = pow(2.0, -static_cast<double>(clause.size()));
-        for (int lit : clause) {
-            score[lit] += weight;
+    // Give more weight to Jeroslow-Wang (alpha) based on observed performance
+    double alpha = 5.0;   // Heavier Jeroslow-Wang weight
+    double beta  = 0.8;   // Frequency weight
+    double gamma = 0.3;   // MOM weight
+    double dlisWeight = 0.5; // Additional DLIS-like factor
+
+    unordered_map<int, double> freq; // Count occurrences
+    unordered_map<int, double> jw;   // Jeroslow-Wang scores
+    unordered_map<int, double> mom;  // Weighted by smallest clauses
+    unordered_map<int, double> dlis; // Rough DLIS approach
+
+    // Find smallest clause size for MOM
+    size_t minClauseSize = numeric_limits<size_t>::max();
+    for (const Clause &c : formula) {
+        if (!c.empty() && c.size() < minClauseSize) {
+            minClauseSize = c.size();
         }
     }
-    // Pick the literal with the best score
+
+    // Build initial scores
+    for (const Clause &clause : formula) {
+        double weight = pow(2.0, -static_cast<double>(clause.size())); // Jeroslow-Wang
+        for (int lit : clause) {
+            freq[lit]++;
+            jw[lit] += weight;
+            if (clause.size() == minClauseSize) {
+                mom[lit] += 1.0; // Count occurrences in smallest clauses
+            }
+        }
+    }
+
+    // Simple DLIS-like approach: number of clauses that lit alone can satisfy
+    for (int litCandidate = -static_cast<int>(instance->getNumVars());
+         litCandidate <= static_cast<int>(instance->getNumVars()); litCandidate++) {
+
+        // Skip zero or invalid
+        if (litCandidate == 0) continue;
+        dlis[litCandidate] = 0.0;
+
+        // Count potential satisfaction if we choose litCandidate
+        for (const Clause &clause : formula) {
+            if (clause.count(litCandidate) > 0) {
+                dlis[litCandidate] += 1.0;
+            }
+        }
+    }
+
+    // Combine scores
     int bestLiteral = 0;
     double bestScore = -1.0;
-    for (const auto &[lit, s] : score) {
-        if (s > bestScore) {
-            bestScore = s;
+    for (auto &entry : freq) {
+        int lit = entry.first;
+        double combinedScore =
+            alpha * jw[lit] + 
+            beta  * freq[lit] +
+            gamma * mom[lit] +
+            dlisWeight * dlis[lit];
+        if (combinedScore > bestScore) {
+            bestScore = combinedScore;
             bestLiteral = lit;
         }
     }
-    return bestLiteral; // 0 if all are empty or not found
+    return bestLiteral;
 }
+
+/* int Solver::chooseLiteral(const CNFFormula &formula) { */
+/*     unordered_map<int, double> score; */
+/*     // Assign higher weight to literals in shorter clauses */
+/*     for (const auto &clause : formula) { */
+/*         double weight = pow(2.0, -static_cast<double>(clause.size())); */
+/*         for (int lit : clause) { */
+/*             score[lit] += weight; */
+/*         } */
+/*     } */
+/*     // Pick the literal with the best score */
+/*     int bestLiteral = 0; */
+/*     double bestScore = -1.0; */
+/*     for (const auto &[lit, s] : score) { */
+/*         if (s > bestScore) { */
+/*             bestScore = s; */
+/*             bestLiteral = lit; */
+/*         } */
+/*     } */
+/*     return bestLiteral; // 0 if all are empty or not found */
+/* } */
