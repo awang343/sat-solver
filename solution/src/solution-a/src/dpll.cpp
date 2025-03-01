@@ -32,6 +32,13 @@ void assignLiteral(int literal, bool value, Assignment &cur_assignment, CNFFormu
 
 bool Solver::solve(const CNFFormula &formula, Assignment &cur_assignment) {
     CNFFormula reducedFormula = formula;
+    for (const auto &clause : reducedFormula) {
+        cout << "Clause" << " ";
+        for (const auto &lit : clause) {
+            cout << lit << " ";
+        }
+        cout << endl;
+    }
 
     bool updated = true;
     while (updated) {
@@ -40,14 +47,6 @@ bool Solver::solve(const CNFFormula &formula, Assignment &cur_assignment) {
         updated = updated || this->pureLiteralElimination(reducedFormula, cur_assignment);
     }
 
-    for (const auto &clause : reducedFormula) {
-        cout << "Clause" << " ";
-        for (const auto &lit : clause) {
-            cout << lit << " ";
-        }
-        cout << endl;
-    }
-    exit(0);
 
     // If formula is empty, it's satisfiable
     if (reducedFormula.empty()) {
@@ -85,20 +84,11 @@ bool Solver::unitPropagation(CNFFormula &formula, Assignment &assignment) {
     bool updated = false;
     while (changed) {
         changed = false;
-        for (const auto &clause : formula) {
-            cout << "Clause" << " ";
-            for (const auto &lit : clause) {
-                cout << lit << " ";
-            }
-            cout << endl;
-        }
-        cout << endl;
         for (auto it = formula.begin(); it != formula.end();) {
             if (it->size() == 1) { // Found a unit clause
                 int unit = *it->begin();
                 assignLiteral(unit, (unit > 0), assignment, formula);
 
-                formula.erase(it);
                 changed = true;
                 updated = true;
 
