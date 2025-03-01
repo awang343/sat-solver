@@ -38,9 +38,10 @@ inputFolder=$inputFolder/
 fi
 
 # Terminate if the log file already exists
-[ -f $logFile ] && echo "Logfile $logFile already exists, terminating." && exit 1
+# [ -f $logFile ] && echo "Logfile $logFile already exists, terminating." && exit 1
 
 # Create the log file
+rm $logFile
 touch $logFile
 
 # Run on every file, get the last line, append to log file

@@ -181,9 +181,9 @@ int Solver::chooseLiteral() {
 /*{{{ DPLL Loop*/
 bool Solver::dpll() {
     // First, perform pure literal elimination and propagate any unit clauses.
-    /* if (!pureLiteralElimination()) { */
-    /*     return false; */
-    /* } */
+    if (!pureLiteralElimination()) {
+        return false;
+    }
     if (!propagate()) {
         return false;
     }

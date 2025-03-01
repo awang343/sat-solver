@@ -26,16 +26,22 @@ int main(int argc, char *argv[]) {
     SATInstance instance = parseCNFFile(input);
     Solver solver = Solver();
     solver.setInstance(instance);
-    cout << instance.toString() << endl;
-    bool sat = solver.solve();
+    solver.solver();
     watch.stop();
 
+    bool sat = solver.getResult();
     Assignment assignment = solver.getAssignment();
 
     if (sat) {
+        for (const auto &var : instance.getVars()) {
+            if (assignment.find(var) == assignment.end()) {
+                assignment[var] = true;
+            }
+        }
+
         string solution;
         for (const auto &[key, value] : assignment) {
-            solution += to_string(key) + " " + (value == 1 ? "true" : "false") + " ";
+            solution += to_string(key) + " " + (value ? "true" : "false") + " ";
         }
         if (!solution.empty()) {
             solution.pop_back(); // Remove the trailing space

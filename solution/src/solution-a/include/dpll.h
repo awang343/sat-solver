@@ -3,25 +3,26 @@
 
 #include "sat_instance.h"
 #include "types.h"
-#include <algorithm>
-#include <cmath>
-#include <iostream>
-#include <unistd.h>
 
 class Solver {
   private:
-    SATInstance *instance;
+    SATInstance* instance;
+    Assignment assignment;
+    bool result;
 
-    bool dpll();
-    bool propagate();
-    bool pureLiteralElimination();
-    int chooseLiteral();
+    bool solve(const CNFFormula &formula, Assignment &assignment);
+    bool unitPropagation(CNFFormula &formula, Assignment &assignment);
+    bool pureLiteralElimination(CNFFormula &formula, Assignment &assignment);
+
+    int chooseLiteral(const CNFFormula &formula);
 
   public:
     Solver();
     void setInstance(SATInstance &instance);
+    void solver();
+
+    bool getResult();
     Assignment getAssignment();
-    bool solve();
 };
 
 #endif

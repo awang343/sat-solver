@@ -2,10 +2,6 @@
 {"Instance": "C208_120.cnf", "Time": 54.57, "Result": "UNSAT"}
 {"Instance": "U75_1597_024.cnf", "Time": "--", "Result": "--"}
 {"Instance": "C140.cnf", "Time": "--", "Result": "--"}
-{"Instance": "toy_infeasible.cnf", "Time": 0.00, "Result": "UNSAT"}
-{"Instance": "toy_simple.cnf", "Time": 0.00, "Result": "SAT", "Solution": "2 true 3 false 1 true"}
-{"Instance": "toy_example.cnf", "Time": 0.00, "Result": "UNSAT"}
-{"Instance": "toy_solveable.cnf", "Time": 0.00, "Result": "SAT", "Solution": "2 true 26 false 15 true 22 false 9 false 24 false 12 true 8 false 3 true 14 false 23 false 6 true 25 false 1 false 11 false 20 true 7 true 19 false 5 true 18 true 13 true 4 false 17 true 10 true 21 true 16 true"}
 {"Instance": "U50_1065_038.cnf", "Time": 5.38, "Result": "UNSAT"}
 {"Instance": "C181_3151.cnf", "Time": 0.26, "Result": "UNSAT"}
 {"Instance": "C175_145.cnf", "Time": "--", "Result": "--"}
