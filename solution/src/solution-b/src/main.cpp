@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
     SATInstance instance = parseCNFFile(input);
     Solver solver = Solver();
     solver.setInstance(instance);
-    cout << instance.toString() << endl;
+    /* cout << instance.toString() << endl; */
     bool sat = solver.solve();
     watch.stop();
 

@@ -1,0 +1,25 @@
+{"Instance": "C53_895.cnf", "Time": 11.06, "Result": "UNSAT"}
+{"Instance": "C208_120.cnf", "Time": 54.57, "Result": "UNSAT"}
+{"Instance": "U75_1597_024.cnf", "Time": "--", "Result": "--"}
+{"Instance": "C140.cnf", "Time": "--", "Result": "--"}
+{"Instance": "toy_infeasible.cnf", "Time": 0.00, "Result": "UNSAT"}
+{"Instance": "toy_simple.cnf", "Time": 0.00, "Result": "SAT", "Solution": "2 true 3 false 1 true"}
+{"Instance": "toy_example.cnf", "Time": 0.00, "Result": "UNSAT"}
+{"Instance": "toy_solveable.cnf", "Time": 0.00, "Result": "SAT", "Solution": "2 true 26 false 15 true 22 false 9 false 24 false 12 true 8 false 3 true 14 false 23 false 6 true 25 false 1 false 11 false 20 true 7 true 19 false 5 true 18 true 13 true 4 false 17 true 10 true 21 true 16 true"}
+{"Instance": "U50_1065_038.cnf", "Time": 5.38, "Result": "UNSAT"}
+{"Instance": "C181_3151.cnf", "Time": 0.26, "Result": "UNSAT"}
+{"Instance": "C175_145.cnf", "Time": "--", "Result": "--"}
+{"Instance": "C1597_060.cnf", "Time": "--", "Result": "--"}
+{"Instance": "U50_1065_045.cnf", "Time": 8.57, "Result": "UNSAT"}
+{"Instance": "C459_4675.cnf", "Time": 0.03, "Result": "UNSAT"}
+{"Instance": "C208_3254.cnf", "Time": "--", "Result": "--"}
+{"Instance": "C1597_024.cnf", "Time": "--", "Result": "--"}
+{"Instance": "C210_30.cnf", "Time": "--", "Result": "--"}
+{"Instance": "C200_1806.cnf", "Time": "--", "Result": "--"}
+{"Instance": "C1065_064.cnf", "Time": 8.85, "Result": "UNSAT"}
+{"Instance": "C1597_081.cnf", "Time": "--", "Result": "--"}
+{"Instance": "C243_188.cnf", "Time": "--", "Result": "--"}
+{"Instance": "C1065_082.cnf", "Time": 5.84, "Result": "UNSAT"}
+{"Instance": "U50_4450_035.cnf", "Time": "--", "Result": "--"}
+{"Instance": "C168_128.cnf", "Time": "--", "Result": "--"}
+{"Instance": "C210_55.cnf", "Time": "--", "Result": "--"}
