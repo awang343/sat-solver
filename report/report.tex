@@ -13,8 +13,8 @@
 
 \newcommand{\noteTitle}{SAT Solver Implementation Report}
 \newcommand{\professor}{Serdar Kadioglu}
-\newcommand{\class}{CSCI 2951O Prescriptive Analytics}
-\newcommand{\notesAuthor}{[Your Name(s)]}
+\newcommand{\class}{CSCI 2951O}
+\newcommand{\notesAuthor}{Alan Wang (awong343), Ryan Eng (reng1)}
 
 \pagestyle{fancy}
 \lhead{\notesAuthor}
@@ -25,6 +25,8 @@
 \rfoot{}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0.4pt}
+
+\begin{document}
 
 \title{
   \textmd{\LARGE{\textbf{\noteTitle}}}\\
@@ -37,22 +39,45 @@
   \author{}
 }
 
-\begin{document}
-\maketitle
-
 \section*{Team Information}
 \begin{itemize}
-    \item \textbf{Name(s)}: [Your Name(s)]
-    \item \textbf{CS Login(s)}: [Your CS Login(s)]
-    \item \textbf{Screen Name(s)}: [Your Screen Name(s)]
-    \item \textbf{Time Spent}: [Total Hours Spent]
+    \item \textbf{Screen Name(s)}: \textbackslash n\textbackslash n\textbackslash n\textbackslash n\textbackslash n
+    \item \textbf{Time Spent}: 20+
 \end{itemize}
 
 \section*{Introduction}
-Our SAT solver implementation is based on the DPLL (Davis-Putnam-Logemann-Loveland) algorithm. We chose C++ for its performance benefits, particularly the lack of overhead, which is crucial for solving large and complex SAT instances efficiently.
+Our SAT solver implementation is based on the DPLL (Davis-Putnam-Logemann-Loveland) algorithm. We chose C++ for its performance benefits, particularly the lack of overhead, which we theorized could be crucial to efficiently solving complex SAT instances in relatively short amounts of time.
+
+\vspace{10pt}
+
+\noindent As for the simple heuristics that we considered first, we implemented unit clauses and pure literals early on, as we figured it would help prune and simplify the problem relatively quickly. Later in the project, we explored the use of watch literals, as we thought that adding them would help speed up performance on SAT problems. 
+
+\vspace{10pt}
+
+\noindent To tackle choosing good heuristics for branching, we tried several different methods, ranging from frequency heuristics, maximum occurrences in clauses of minimum size, the dynamic largest individual sum (see below), as well as assigning literals that appeared in smaller clauses. After trying different weighting schema, we found that up-weighting the branching on literals that appear in smaller clauses worked the best.
+
+\vspace{10pt}
+
+\noindent Another observation that we made was that our while different heuristics worked better across different runs, watched literals resulted in large speedups across the board, and tailoring these two approaches into an ensemble of distinct solvers was more effective than trying to distill everything into one solver. Therefore, we decided that, in approaching our problems, rather than applying one model that used all the heuristics and methodologies together, it was optimal to decide the nature of the given problem and apply the optimal specialized solver for it. Through this method, although we would later realize that our implementations had bugs, the number of unsolvable problems and bottlenecks that we previously had shrunk. 
+
+\section*{Challenges}
+
+\noindent Some of the biggest challenges included the debugging phase, particularly for backtracking before the first deadline. At the second deadline, we faced problems with our watch literal, as we realized that our watch literal had several bugs.
+
+\vspace{10pt}
+
+\noindent The first bug we noticed was that our solver was incorrectly declaring certain assignments to be SAT despite conflicts. Upon some unit testing with our own generated SAT examples (and some pulled off of stack exchange), we realized that the bug was caused by a piece of terminating logic in our code where our solver declared something to be SAT as long as all the literals received assignments, irrespective of whether they caused conflicts. This error was difficult to locate in the given test cases/examples, but upon creating our own simple unsat problem, and going through each of the branching sequence by sequence, we located the bug.
+
+\vspace{10pt}
+
+\noindent Our other bug, which took a lengthy part of our implementation process, was the declaration of unsat solution for a SAT case. At first, it was hard for us to pinpoint the reason for the error, and outputs of the clause assignments were unfruitful. To start, we took a binary search approach to our clauses to try to discover the clause that when added, would make our solver return unsat. We located this clause through a binary search method, but upon some analysis, without knowing the branching that led to it, this too was did not provide any insights into our bug. We then tried to shrink the search space to make the branching more follow-able by reducing the number of clauses as much as we could while still preserving an unsat property. This method also proved to be infeasible. Lastly, since we had been developing our heuristics independently of the watch literal, because we were looking into developing ensemble solvers and started with heuristics before transitioning to the watch literal, we did have available to us a viable SAT solution. Using this sat solution, we were able to prune the conflict branches of our watch literal implementation as we knew which assignments would not work. Upon pruning, we finally isolated the discrepancy that caused our solver to declare the problem unsat, and upon backtracking and looking at the exact clauses and watch literals that led to where the discrepancy occurred, we realized that during propagation, all the watch literals that should have been referenced within the clause of interest became misaligned. This was due to a C++ referencing error, and we realized our solver incorrectly assigned watch literals for certain clauses. Assignments for watch literals in one clause did not propagate throughout the other clauses the literal was present, and as a result, the other variables in those other clauses also became incorrectly assigned. This led to the solver deciding that a conflict existed where there were none.  
+
+\vspace{10pt}
+
+\noindent In addition, to ensure the validity of our results, we created a script that evaluated the correctness. However, upon inspection of the discrepancies between our verifier and assignments that were deemed to be SAT, we realized that for the input documents that our solver approached with the Jeroslow-Wang clause size heuristic, the assignment results were incorrect and would create conflicts. This caused a lengthy debugging period but validated our decision to create our own verification script. 
 
 \section*{Solution Strategy}
-Our solver employs several heuristics to improve the efficiency of the DPLL algorithm:
+Our solver employs several literal selection heuristics to improve the efficiency of the DPLL algorithm:
 \begin{itemize}
     \item \textbf{Jeroslow-Wang (JW) clause size Heuristic}: Assigns higher weights to literals in smaller clauses.
     \item \textbf{Frequency Heuristic}: Counts the occurrences of each literal in the formula.
@@ -64,7 +89,7 @@ Our solver employs several heuristics to improve the efficiency of the DPLL algo
 \begin{itemize}
     \item \textbf{Unit Propagation}: Simplifies the formula by assigning values to unit clauses.
     \item \textbf{Pure Literal Elimination}: Removes clauses containing pure literals.
-    \item \textbf{Heuristic-Based Literal Selection}: Combines multiple heuristics to choose the best literal for branching.
+    \item \textbf{Watch Literal}: TBA
 \end{itemize}
 
 \section*{Experimental Observations}
@@ -91,7 +116,5 @@ Our solver employs several heuristics to improve the efficiency of the DPLL algo
 \section*{Conclusion}
 Our SAT solver implementation successfully leveraged multiple heuristics to enhance the DPLL algorithm's performance. While tuning the heuristics and handling edge cases were challenging, the final solver demonstrated significant improvements in efficiency and scalability.
 
-\section*{Additional Information}
-We chose C++ for its performance benefits, particularly the lack of overhead, which is crucial for solving large and complex SAT instances efficiently.
 
 \end{document}
