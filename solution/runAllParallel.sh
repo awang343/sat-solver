@@ -5,6 +5,8 @@
 ########################################
 E_BADARGS=65
 
+ulimit -v $((20 * 1024 * 1024))  # Set virtual memory limit to 20GB
+
 if [ $# -ne 3 ] && [ $# -ne 2 ]; then
     echo "Usage: $(basename $0) <inputFolder/> <timeLimit> [<logFile>]"
     echo "Description:"
@@ -33,9 +35,10 @@ fi
 [[ "${inputFolder: -1}" != "/" ]] && inputFolder="$inputFolder/"
 
 # Terminate if the log file already exists
-[ -f "$logFile" ] && echo "Logfile $logFile already exists, terminating." && exit 1
+# [ -f "$logFile" ] && echo "Logfile $logFile already exists, terminating." && exit 1
 
 # Create the log file
+rm "$logFile"
 touch "$logFile"
 
 process_file() {
@@ -43,12 +46,13 @@ process_file() {
     local timeLimit="$2"
     local logFile="$3"
 
-    echo "Running $fullFileName"
     output=$(timeout "$timeLimit" ./run.sh "$fullFileName" 2>&1)
     returnValue="$?"
+    echo $returnValue;
 
     if [[ "$returnValue" = 0 ]]; then
         echo "$output" | tail -1 >>"$logFile"
+        echo "Completed $fullFileName"
     else
         instance=$(basename "$fullFileName")
         echo "{\"Instance\": \"$instance\", \"Time\": \"--\", \"Result\": \"--\"}" >>"$logFile"
@@ -58,6 +62,6 @@ process_file() {
 export -f process_file
 
 # Run all files in parallel
-find "$inputFolder" -type f | parallel -j 3 process_file {} "$timeLimit" "$logFile"
+find "$inputFolder" -type f | parallel -j 4 --ungroup 'echo Job {} started;' process_file {} "$timeLimit" "$logFile"
 
 echo "Processing complete. Log saved to $logFile"

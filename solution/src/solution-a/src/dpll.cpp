@@ -2,6 +2,7 @@
 #include "sat_instance.h"
 #include "types.h"
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 
 using namespace std;
@@ -32,13 +33,6 @@ void assignLiteral(int literal, bool value, Assignment &cur_assignment, CNFFormu
 
 bool Solver::solve(const CNFFormula &formula, Assignment &cur_assignment) {
     CNFFormula reducedFormula = formula;
-    for (const auto &clause : reducedFormula) {
-        cout << "Clause" << " ";
-        for (const auto &lit : clause) {
-            cout << lit << " ";
-        }
-        cout << endl;
-    }
 
     bool updated = true;
     while (updated) {
@@ -46,7 +40,6 @@ bool Solver::solve(const CNFFormula &formula, Assignment &cur_assignment) {
         updated = updated || this->unitPropagation(reducedFormula, cur_assignment);
         updated = updated || this->pureLiteralElimination(reducedFormula, cur_assignment);
     }
-
 
     // If formula is empty, it's satisfiable
     if (reducedFormula.empty()) {
@@ -87,7 +80,7 @@ bool Solver::unitPropagation(CNFFormula &formula, Assignment &assignment) {
         for (auto it = formula.begin(); it != formula.end();) {
             if (it->size() == 1) { // Found a unit clause
                 int unit = *it->begin();
-                assignLiteral(unit, (unit > 0), assignment, formula);
+                assignLiteral(unit, true, assignment, formula);
 
                 changed = true;
                 updated = true;
@@ -114,17 +107,48 @@ bool Solver::pureLiteralElimination(CNFFormula &formula, Assignment &assignment)
     for (const auto &[lit, count] : literalCounts) {
         if (literalCounts.count(-lit) == 0) { // It's a pure literal
             updated = true;
-            assignLiteral(lit, (lit > 0), assignment, formula);
+            assignLiteral(lit, true, assignment, formula);
         }
     }
     return updated;
 }
 
 int Solver::chooseLiteral(const CNFFormula &formula) {
-    for (const Clause &clause : formula) {
-        if (!clause.empty()) {
-            return *clause.begin(); // Select first available literal
+    // Parameters for combining heuristics
+    double alpha = 2.0;              // Jeroslow-Wang weight
+    double beta = 1.0;               // Pure frequency weight
+    double gamma = 0.5;              // MOM-like weight
+    unordered_map<int, double> freq; // Count occurrences
+    unordered_map<int, double> jw;   // Jeroslow-Wang scores
+    unordered_map<int, double> mom;  // Weighted by smallest clauses
+    // Find smallest clause size for MOM
+    size_t minClauseSize = numeric_limits<size_t>::max();
+    for (const Clause &c : formula) {
+        if (!c.empty() && c.size() < minClauseSize) {
+            minClauseSize = c.size();
         }
     }
-    return 0; // Should not happen
+    // Build scores
+    for (const Clause &clause : formula) {
+        double weight = pow(2.0, -static_cast<double>(clause.size())); // Jeroslow-Wang
+        for (int lit : clause) {
+            freq[lit]++;
+            jw[lit] += weight;
+            if (clause.size() == minClauseSize) {
+                mom[lit] += 1.0; // Count occurrences in smallest clauses
+            }
+        }
+    }
+    // Combine scores
+    int bestLiteral = 0;
+    double bestScore = -1.0;
+    for (auto &entry : freq) {
+        int lit = entry.first;
+        double combinedScore = alpha * jw[lit] + beta * freq[lit] + gamma * mom[lit];
+        if (combinedScore > bestScore) {
+            bestScore = combinedScore;
+            bestLiteral = lit;
+        }
+    }
+    return bestLiteral;
 }

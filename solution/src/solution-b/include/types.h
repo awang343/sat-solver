@@ -5,15 +5,15 @@
 #include <set>
 #include <unordered_map>
 #include <vector>
+#include <memory>
 
 struct Clause {
     std::vector<int> literals;
     // Indices (into literals vector) for the two watched literals.
     // For unit clauses only watch1 is valid.
     std::optional<size_t> watch1, watch2;
-    bool satisfied;
 
-    Clause(const std::vector<int> &lits) : literals(lits), satisfied(false) {
+    Clause(const std::vector<int> &lits) : literals(lits) {
         if (!literals.empty()) {
             watch1 = 0;
         }

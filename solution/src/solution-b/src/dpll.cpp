@@ -8,6 +8,26 @@ Solver::Solver() : instance() {}
 void Solver::setInstance(SATInstance &instance) { this->instance = &instance; }
 Assignment Solver::getAssignment() { return instance->assignment; }
 
+
+/*{{{ Debugging print functions */
+void printClause(const Clause &clause) {
+    cout << "{ ";
+    for (size_t i = 0; i < clause.literals.size(); i++) {
+        if (i > 0)
+            cout << ", ";
+        cout << clause.literals[i];
+    }
+    cout << " }";
+}
+
+void printClauses(const std::vector<Clause> &clauses) {
+    std::cout << "Clauses: ";
+    for (const auto &clause : clauses) {
+        printClause(clause);
+    }
+    cout << endl << endl;
+}
+
 void printAssignments(Assignment assignment) {
     for (const auto &[key, value] : assignment) {
         if (value != 0)
@@ -15,18 +35,12 @@ void printAssignments(Assignment assignment) {
     }
     cout << endl;
 }
-void printWatchers(WatchedLiterals watchers) {
-    for (const auto &entry : watchers) {
-        std::cout << "Key: " << entry.first << "\n";
-        std::cout << "  Values: \n";
-
-        for (const auto &pair : entry.second) {
-            std::cout << "    (" << pair.first << ", " << pair.second << ")\n";
-        }
-
-        std::cout << std::endl; // Print a blank line for better readability
+void printWatchers(WatchedLiterals watchers, int literal) {
+    cout << literal << ":\t";
+    for (const auto &pair : watchers[literal]) {
+        std::cout << "(" << pair.first << ", " << pair.second << ") ";
     }
-}
+} /*}}}*/
 
 /*{{{ Propagate*/
 bool Solver::propagate() {
@@ -35,8 +49,8 @@ bool Solver::propagate() {
         int p = instance->propQueue.front();
         instance->propQueue.pop();
         int negP = -p; // This literal is forced to be false
+
         // We process all clauses that are watching -p because -p is false
-        /* printWatchers(instance->watchers); */
         set<pair<size_t, int>> currentWatchers = instance->watchers[negP];
         for (auto &entry : currentWatchers) {
             size_t ci = entry.first;    // Index of the clause in the clauses map
@@ -55,24 +69,23 @@ bool Solver::propagate() {
             // If the other watched literal is already true, then the clause is sat.
             int otherLit = clause.literals[static_cast<size_t>(otherWatchIdx)];
             if (instance->isTrue(otherLit)) {
-                /* clause.satisfied = true; */
                 continue;
             }
 
             // Otherwise, try to find a new literal in the clause to watch
             bool foundNewWatch = false;
             for (size_t k = 0; k < clause.literals.size(); k++) {
-                int k_int = static_cast<int>(k);
-                if (k_int == clause.watch1 || k_int == clause.watch2)
+                if (k == *clause.watch1 || k == *clause.watch2) {
                     continue;
+                }
                 int candidate = clause.literals[k];
 
                 // If a literal is unassigned or true, we can watch it
                 if (!instance->isFalse(candidate)) {
                     if (watchId == 0)
-                        clause.watch1 = k_int;
+                        clause.watch1 = k;
                     else
-                        clause.watch2 = k_int;
+                        clause.watch2 = k;
                     instance->watchers[negP].erase(entry);
                     instance->watchers[candidate].insert(entry);
                     foundNewWatch = true;
@@ -81,26 +94,19 @@ bool Solver::propagate() {
             }
 
             if (!foundNewWatch) {
-                // No replacement was found, so the other literal must be true
+                // No replacement found, so either the other literal is true or conflict
                 // Otherwise, there is a conflict
-                int val = (otherLit > 0) ? 1 : -1;
 
                 if (instance->isFalse(otherLit)) {
-                    instance->watchers[negP].insert(entry);
                     return false; // conflict detected
-                } else if (instance->isTrue(otherLit)) {
-                    /* clause.satisfied = true; */
                 } else if (instance->assignment[abs(otherLit)] == 0) {
-                    /* cout << "Propagation sets " << otherLit << endl; */
+                    // We can guarantee that the otherLit has to be true
+                    int val = (otherLit > 0) ? 1 : -1;
                     instance->assignment[abs(otherLit)] = val;
                     instance->propQueue.push(otherLit);
                 }
-
-                // Re-add this watcher (still watching -p).
-                instance->watchers[negP].insert(entry);
             }
         }
-        /* printWatchers(instance->watchers); */
     }
     return true;
 } /*}}}*/
@@ -113,9 +119,6 @@ bool Solver::pureLiteralElimination() {
         unordered_map<int, int> polarities;
         // Count appearances of each literal (only if the variable is unassigned).
         for (const auto &clause : instance->clauses) {
-            if (clause.satisfied) {
-                continue;
-            }
             for (int lit : clause.literals) {
                 if (instance->assignment[abs(lit)] != 0) {
                     continue;
@@ -156,10 +159,6 @@ int Solver::chooseLiteral() {
     unordered_map<int, double> score;
     // Assign higher weight to literals in shorter clauses
     for (const auto &clause : instance->clauses) {
-        if (clause.satisfied) {
-            continue; // Skip the clause if it's already sat
-        }
-
         double weight = pow(2.0, -static_cast<double>(clause.literals.size()));
         for (int lit : clause.literals) {
             score[lit] += weight;
@@ -181,9 +180,9 @@ int Solver::chooseLiteral() {
 /*{{{ DPLL Loop*/
 bool Solver::dpll() {
     // First, perform pure literal elimination and propagate any unit clauses.
-    if (!pureLiteralElimination()) {
-        return false;
-    }
+    /* if (!pureLiteralElimination()) { */
+    /*     return false; */
+    /* } */
     if (!propagate()) {
         return false;
     }
@@ -196,24 +195,24 @@ bool Solver::dpll() {
             break;
         }
     }
+
     if (complete) {
         return true;
     }
 
     // Choose a literal to branch on.
     int lit = chooseLiteral();
-    if (lit == 0)
+
+    if (lit == 0) {
+        cout << "No literal found... This indicates a bug and should never happen" << endl;
         return false; // no literal found
+    }
 
     // Save state for backtracking.
-    /* cout << "Save point" << endl; */
     auto assignment_backup = instance->assignment;
-    vector<Clause> clauses_backup = instance->clauses;
     queue<int> propQueue_backup = instance->propQueue;
 
     // Branch with the chosen literal set to true.
-    /* cout << "Branching on literal " << lit << endl; */
-    /* cout << "Trying " << lit << endl; */
     instance->assignment[abs(lit)] = lit > 0 ? 1 : -1;
     instance->propQueue.push(lit);
     if (propagate() && dpll()) {
@@ -221,24 +220,21 @@ bool Solver::dpll() {
     }
 
     // Restore state
-    /* cout << "Backtrack" << endl; */
     instance->assignment = assignment_backup;
-    instance->clauses = clauses_backup;
     instance->propQueue = propQueue_backup;
 
     // Try opposite assignment
-    /* cout << "Trying " << -lit << endl; */
     instance->assignment[abs(lit)] = lit < 0 ? 1 : -1;
     instance->propQueue.push(-lit);
+
     if (propagate() && dpll()) {
         return true;
     }
 
-    /* cout << "Backtrack" << endl; */
     // Restore state and return failure.
     instance->assignment = assignment_backup;
-    instance->clauses = clauses_backup;
     instance->propQueue = propQueue_backup;
+
     return false;
 } /*}}}*/
 
